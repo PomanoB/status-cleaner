@@ -2,17 +2,19 @@
 var crypto = require('crypto');
 
 var request = require('request');
-var qs = require('querystring')
 
-function Twitter()
+function Twitter(auth)
 {
+	if (!auth)
+		auth = {};
+
 	this.apiUrl = "https://api.twitter.com/";
 	this.apiVersion = "1.1";
 
-	this.consumerKey = "";
-	this.consumerSecret = "";
-	this.oAuthToken = "";
-	this.oAuthTokenSecret = "";
+	this.consumerKey = auth.consumerKey || "";
+	this.consumerSecret = auth.consumerSecret || "";
+	this.oAuthToken = auth.oAuthToken || "";
+	this.oAuthTokenSecret = auth.oAuthTokenSecret || "";
 }
 
 Twitter.prototype.getOAuthParams = function(){
