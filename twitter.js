@@ -3,19 +3,60 @@ var crypto = require('crypto');
 
 var request = require('request');
 
+var nullFunction = function(){};
+
 function Twitter(auth)
 {
 	if (!auth)
 		auth = {};
 
-	this.apiUrl = "https://api.twitter.com/";
-	this.apiVersion = "1.1";
+	this.apiUrl = 'https://api.twitter.com/';
+	this.apiVersion ='1.1';
 
-	this.consumerKey = auth.consumerKey || "";
-	this.consumerSecret = auth.consumerSecret || "";
-	this.oAuthToken = auth.oAuthToken || "";
-	this.oAuthTokenSecret = auth.oAuthTokenSecret || "";
+	this.consumerKey = auth.consumerKey || '';
+	this.consumerSecret = auth.consumerSecret || '';
+	this.oAuthToken = auth.oAuthToken || '';
+	this.oAuthTokenSecret = auth.oAuthTokenSecret || '';
 }
+
+Twitter.prototype.destroyStatus = function(statusId, callback){
+	callback = callback || nullFunction;
+	this.makeRequest('POST', 'statuses', 'destroy/' + statusId, function(err, data){
+		if (err)
+			return callback(err);
+		callback(null, data);
+	});
+};
+
+Twitter.prototype.getParams = function(options, avialable){
+	var result = {};
+	if (!options)
+		return result;
+	avialable.forEach(function(key){
+		var resultParamName = key.replace(/([a-z])([A-Z])/g, function(all, firstLetter, secondLetter){
+			return firstLetter + '_' + secondLetter.toLowerCase();
+		});
+		if (typeof options[key] !== "undefined")
+			result[resultParamName] = options[key];
+	});
+	return result;
+};
+
+Twitter.prototype.loadUserTimeline = function(options, callback){
+
+	var params = this.getParams(options, [
+		'userId',
+		'screenName',
+		'sinceId',
+		'count',
+		'maxId',
+		'trimUser',
+		'excludeReplies',
+		'contributorDetails',
+		'includeRts'
+	]);
+	this.makeRequest('GET', 'statuses', 'user_timeline', params, callback);
+};
 
 Twitter.prototype.getOAuthParams = function(){
 	return {
@@ -56,7 +97,7 @@ Twitter.prototype.makeSignature = function(method, url, oAuthParams, queryParams
 	var hmac = crypto.createHmac('sha1', key);
 	hmac.update(result);
 
-	return hmac.digest("base64");
+	return hmac.digest('base64');
 };
 
 Twitter.prototype.makeAuthorizationHeader = function(oAuthParams){
@@ -82,6 +123,7 @@ Twitter.prototype.makeRequest = function(type, resource, method, params, callbac
 		callback = params;
 		params = undefined;
 	}
+	callback = callback || nullFunction;
 
 	var options = {
 		url: this.apiUrl + this.apiVersion + "/" + resource + "/" + method + ".json",
@@ -99,8 +141,11 @@ Twitter.prototype.makeRequest = function(type, resource, method, params, callbac
 		Authorization: authorizationHeader
 	};
 	request(options, function(err, res, data){
-		if (callback)
-			callback(err, data);
+		if (err)
+			return callback(err);
+		if (typeof data['errors'] !== 'undefined')
+			return callback(data['errors']);
+		callback(null, data);
 	});
 };
 

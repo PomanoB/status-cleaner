@@ -7,6 +7,7 @@
 	},
 	"dependencies": {
 		"async": "*",
-		"request": "*"
+		"request": "*",
+		"log4js": "*"
 	}
 }
