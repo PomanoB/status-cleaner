@@ -73,10 +73,7 @@ StatusCleaner.prototype.processStatuses = function(err, data){
 			var that = this;
 			async.forEach(data, function(status, callback){
 				that.maxId_ = status.id_str;
-				logger.info("Start processing status", status.id_str);
-
-				callback(null);
-
+				that.processStatus(status, callback);
 			}, function(err){
 				if (err)
 					logger.error("Error processing statuses!", err);
@@ -91,6 +88,17 @@ StatusCleaner.prototype.processStatuses = function(err, data){
 		logger.error("Error loading statuses!", err);
 		setTimeout(this.loadAndDeleteStatusesDelegate_, this.refreshInterval);
 	}
+};
+
+StatusCleaner.prototype.processStatus = function(status, callback){
+	logger.info("Start processing status", status.id_str);
+	if (this.deleteWords.some(function(){
+		return Math.random() * 2 | 0;
+	}))
+	{
+		logger.info("Status contain bad words", status.id_str);
+	}
+	callback(null);
 };
 
 module.exports = StatusCleaner;
