@@ -1,11 +1,13 @@
 
 module.exports = {
 	auth: {
-		consumerKey: "quZ5Rhw",
-		consumerSecret: "snJi8oD4A1ew",
-		oAuthToken: "4100hOlcj",
-		oAuthTokenSecret: "ebv"
+		consumerKey: "",
+		consumerSecret: "",
+		oAuthToken: "",
+		oAuthTokenSecret: ""
 	},
-	userName: "user0",
-	deleteWord: []
+	userName: "romanov4400",
+	deleteWord: [
+		'http://t.co/w9QD037SNY'
+	]
 };

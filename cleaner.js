@@ -18,13 +18,15 @@ function StatusCleaner(options)
 
 	this.userName = options.userName;
 	this.processCount = options.processCount || 50;
-	this.refreshInterval = options.refreshInterval || defOptions.refreshInterval;
+	this.refreshInterval = ((options.refreshInterval | 0) || defOptions.refreshInterval) * 1000;
 	this.deleteWords = options.deleteWords || defOptions.deleteWords;
 
 	this.timeoutId_ = 0;
 	this.maxId_ = null;
 	this.firstSinceId_ = null;
 	this.sinceId_ = null;
+
+	this.stopped = true;
 
 	this.loadAndDeleteStatusesDelegate_ = this.loadAndDeleteStatuses.bind(this);
 	this.processStatusesDelegate_ = this.processStatuses.bind(this);
@@ -39,12 +41,21 @@ StatusCleaner.prototype.setInterval = function(interval){
 };
 
 StatusCleaner.prototype.start = function(){
+	logger.info("System start");
+	this.stopped = false;
 	this.loadAndDeleteStatuses();
 	this.timeoutId_ = setTimeout(this.loadAndDeleteStatusesDelegate_, this.refreshInterval * 1000);
 };
 
-StatusCleaner.prototype.loadAndDeleteStatuses = function(){
+StatusCleaner.prototype.stop = function(){
+	logger.info("System stop");
+	this.stopped = true;
+	clearTimeout(this.timeoutId_);
+};
 
+StatusCleaner.prototype.loadAndDeleteStatuses = function(){
+	if (this.stopped)
+		return;
 	logger.info("Start loading statuses");
 	var queryParams = {
 		screenName: this.userName,
@@ -61,17 +72,29 @@ StatusCleaner.prototype.loadAndDeleteStatuses = function(){
 };
 
 StatusCleaner.prototype.processStatuses = function(err, data){
+	if (this.stopped)
+		return;
 	if (!err)
 	{
-		if (data.length == 0 && this.maxId_ !== null && this.sinceId_ === null)
-			this.sinceId_ = this.firstSinceId_;
+		logger.info("Loaded statuses count", data.length);
+		if (data.length === 0 || (data.length === 1 && this.maxId_ == data[0].id_str))
+		{
+			logger.info("Reach end timeline, wait new statuses");
+			if (this.firstSinceId_ !== null && this.sinceId_ === null)
+				this.sinceId_ = this.firstSinceId_;
+
+			this.timeoutId_ = setTimeout(this.loadAndDeleteStatusesDelegate_, this.refreshInterval);
+		}
 		else
 		{
-			if (this.maxId_ === null)
+			if (this.firstSinceId_ === null)
 				this.firstSinceId_ = data[0].id_str;
-
+			else if (this.sinceId_ !== null)
+				this.sinceId_ = data[0].id_str;
 			var that = this;
-			async.forEach(data, function(status, callback){
+			async.eachSeries(data, function(status, callback){
+				if (that.maxId_ == status.id_str)
+					return callback(null);
 				that.maxId_ = status.id_str;
 				that.processStatus(status, callback);
 			}, function(err){
@@ -79,26 +102,39 @@ StatusCleaner.prototype.processStatuses = function(err, data){
 					logger.error("Error processing statuses!", err);
 				else
 					logger.info("Done processing statuses");
-				setTimeout(this.loadAndDeleteStatusesDelegate_, this.refreshInterval);
+
+				this.timeoutId_ = setTimeout(that.loadAndDeleteStatusesDelegate_, that.refreshInterval);
 			});
 		}
 	}
 	else
 	{
 		logger.error("Error loading statuses!", err);
-		setTimeout(this.loadAndDeleteStatusesDelegate_, this.refreshInterval);
+		this.timeoutId_ = setTimeout(this.loadAndDeleteStatusesDelegate_, this.refreshInterval);
 	}
 };
 
 StatusCleaner.prototype.processStatus = function(status, callback){
-	logger.info("Start processing status", status.id_str);
-	if (this.deleteWords.some(function(){
-		return Math.random() * 2 | 0;
+	logger.info("Start processing status", status.id_str, status.text);
+	if (this.deleteWords.some(function(word){
+		return status.text.indexOf(word) !== -1;
 	}))
 	{
-		logger.info("Status contain bad words", status.id_str);
+		logger.info("Status contain bad words, deleting", status.id_str);
+		this.twitterApi_.destroyStatus(status.id_str, function(err){
+			if (err)
+				logger.error("Error deleting status", status.id_str, err);
+			else
+				logger.info("Status deleted!", status.id_str);
+			callback(err);
+		});
+//		callback(null);
 	}
-	callback(null);
+	else
+	{
+		logger.info("Status clean", status.id_str);
+		callback(null);
+	}
 };
 
 module.exports = StatusCleaner;
