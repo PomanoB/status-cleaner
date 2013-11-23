@@ -7,7 +7,7 @@ var StatusCleaner = require('./cleaner');
 cleaner = new StatusCleaner({
 	auth: cfg.auth,
 	userName: cfg.userName,
-	refreshInterval: 30,
+	refreshInterval: cfg.refreshInterval,
 	processCount: 100,
 	deleteWords: cfg.deleteWord
 });
