@@ -1,4 +1,4 @@
 status-cleaner
 ==============
 
-Delete selected twitter statuses
+Delete selected twitter statuses, contains selected words
